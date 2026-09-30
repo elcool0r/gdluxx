@@ -29,6 +29,7 @@
   let outputContainer: HTMLElement | null = $state(null);
   let userScrolledUp = $state(false);
   let showDeleteConfirm = $state(false);
+  let retrying = $state(false);
 
   const tooltip = $state({
     visible: false,
@@ -74,6 +75,13 @@
   // only hides it and returns to the job list.
   function handleMinimize() {
     jobStore.hideJob(job.id);
+  }
+
+  async function handleRetry() {
+    retrying = true;
+    const success = await jobStore.retryJob(job.id);
+    retrying = false;
+    if (!success) clientLogger.error(`Retry request failed for job ${job.id}`);
   }
 
   function handleDismiss() {
@@ -266,18 +274,22 @@
     <div class="px-3 py-2 text-xs border-t-strong sm:px-6 sm:py-3 sm:text-sm">
       <!-- Mobile layout -->
       <div class="flex items-start justify-between gap-2 sm:hidden">
-        <Button
-          variant="outline-danger"
-          onclick={handleDismiss}
-          aria-label="Delete job"
-          class="flex-shrink-0 gap-1.5"
-        >
-          <Icon
-            iconName="delete"
-            size={16}
-          />
-          Delete job
-        </Button>
+        <div class="flex flex-shrink-0 items-center gap-2">
+          <Button
+            variant="outline-danger"
+            onclick={handleDismiss}
+            aria-label="Delete job"
+            class="gap-1.5"
+          >
+            <Icon iconName="delete" size={16} />
+            Delete job
+          </Button>
+          {#if job.status === 'error'}
+            <Button variant="outline-primary" onclick={handleRetry} loading={retrying} aria-label="Retry job" class="gap-1.5">
+              <Icon iconName="reload" size={16} /> Retry
+            </Button>
+          {/if}
+        </div>
         <div class="flex flex-col items-end gap-1 text-right">
           <div class="text-accent-foreground">
             Status: {job.status}
@@ -296,18 +308,22 @@
 
       <!-- Desktop layout -->
       <div class="hidden sm:flex sm:items-center sm:justify-between sm:gap-4">
-        <Button
-          variant="outline-danger"
-          onclick={handleDismiss}
-          aria-label="Delete job"
-          class="gap-1.5"
-        >
-          <Icon
-            iconName="delete"
-            size={18}
-          />
-          Delete job
-        </Button>
+        <div class="flex items-center gap-2">
+          <Button
+            variant="outline-danger"
+            onclick={handleDismiss}
+            aria-label="Delete job"
+            class="gap-1.5"
+          >
+            <Icon iconName="delete" size={18} />
+            Delete job
+          </Button>
+          {#if job.status === 'error'}
+            <Button variant="outline-primary" onclick={handleRetry} loading={retrying} aria-label="Retry job" class="gap-1.5">
+              <Icon iconName="reload" size={18} /> Retry job
+            </Button>
+          {/if}
+        </div>
         <div class="flex items-center gap-4">
           <div class="text-muted-foreground">
             Status: {job.status}

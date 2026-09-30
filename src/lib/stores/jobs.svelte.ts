@@ -565,6 +565,38 @@ async function fetchJobDetails(jobId: string) {
   }
 }
 
+async function retryJob(jobId: string): Promise<boolean> {
+  if (!browser) return false;
+  try {
+    const response = await fetch(`/api/command/job/${jobId}`, { method: 'POST' });
+    const payload = await response.json();
+    if (!response.ok || !payload.success) {
+      throw new Error(payload.error ?? 'Failed to retry job');
+    }
+    const job = ensureDetailJob(jobId, findListRow(jobId));
+    job.eventSource?.close();
+    job.eventSource = undefined;
+    job.status = 'running';
+    job.output = [];
+    job.startTime = Date.now();
+    job.endTime = undefined;
+    job.exitCode = undefined;
+    job.downloadCount = 0;
+    job.skipCount = 0;
+    const row = listJobs.find((item) => item.id === jobId);
+    if (row) {
+      row.status = 'running'; row.startTime = job.startTime; row.endTime = undefined;
+      row.exitCode = undefined; row.downloadCount = 0; row.skipCount = 0;
+    }
+    await Promise.all([loadSummary(), loadListPage(true)]);
+    connectToJob(jobId);
+    return true;
+  } catch (error) {
+    logger.error('Failed to retry job:', error);
+    return false;
+  }
+}
+
 async function deleteJob(jobId: string): Promise<void> {
   if (!browser) {
     return;
@@ -755,6 +787,7 @@ export const jobStore = {
   // Actions
   startJob,
   deleteJob,
+  retryJob,
   deleteJobsBulk,
   deleteAllJobs,
   toggleJobVisibility,

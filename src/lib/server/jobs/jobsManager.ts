@@ -340,6 +340,25 @@ export async function updateJob(
   }
 }
 
+export async function resetJobForRetry(jobId: string, startTime: number): Promise<boolean> {
+  try {
+    const reset = db.transaction(() => {
+      const result = db.prepare(`
+        UPDATE jobs SET status = 'running', startTime = ?, endTime = NULL, exitCode = NULL,
+          downloadCount = 0, skipCount = 0, updatedAt = ? WHERE id = ? AND status = 'error'
+      `).run(startTime, getCurrentTimestamp(), jobId);
+      if (result.changes > 0) {
+        db.prepare('DELETE FROM job_outputs WHERE jobId = ?').run(jobId);
+      }
+      return result.changes > 0;
+    });
+    return reset();
+  } catch (error) {
+    serverLogger.error('Error resetting job for retry:', error);
+    throw new Error('Failed to retry job.', { cause: error });
+  }
+}
+
 export async function addJobOutput(jobId: string, output: JobOutput): Promise<void> {
   try {
     const stmt = db.prepare(`

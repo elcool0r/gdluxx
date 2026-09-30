@@ -24,6 +24,7 @@ import {
   countJobs,
   readJobsSummary,
   readRunningJobIds,
+  resetJobForRetry,
   type JobsPageOptions,
 } from './jobsManager';
 import type { JobListItem, JobsSummary } from '$lib/types/jobs';
@@ -173,6 +174,27 @@ class JobManager {
     this.jobs.set(id, job);
     logger.info(`Batch job created: ${id} for ${urls.length} URL(s)`);
     return id;
+  }
+
+  async prepareJobRetry(id: string): Promise<string | undefined> {
+    await this.initializationPromise;
+    const existing = await this.getJob(id);
+    if (!existing || existing.status !== 'error') return undefined;
+    const startTime = Date.now();
+    if (!(await resetJobForRetry(id, startTime))) return undefined;
+    const job: Job = {
+      id,
+      url: existing.url,
+      status: 'running',
+      output: [],
+      startTime,
+      downloadCount: 0,
+      skipCount: 0,
+      batchCount: existing.batchCount,
+      subscribers: new Set(),
+    };
+    this.jobs.set(id, job);
+    return job.url;
   }
 
   async getJob(id: string): Promise<Job | undefined> {

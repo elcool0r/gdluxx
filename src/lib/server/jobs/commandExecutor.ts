@@ -57,6 +57,7 @@ export async function executeGalleryDlCommand(
   url: string,
   cliArgs: string[],
   options?: GalleryDlCommandOptions,
+  existingJobId?: string,
 ): Promise<CommandExecutionResult> {
   // This layer reports per-URL failures as results; throwing a policy failure
   // would let callers flatten it into an unrelated route-level error.
@@ -72,7 +73,7 @@ export async function executeGalleryDlCommand(
 
   let createdJobId: string | undefined;
   try {
-    const jobId = await jobManager.createJob(url);
+    const jobId = existingJobId ?? (await jobManager.createJob(url));
     createdJobId = jobId;
 
     const argsWithCookies = await withCookieArgs([url], cliArgs);

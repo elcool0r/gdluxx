@@ -29,6 +29,7 @@ export interface LaunchRequest {
   excludedOptions: string[];
   resolveSiteOptions: (url: string) => Promise<Array<[string, string | number | boolean]>>;
   onLaunched?: (result: LaunchResult) => void;
+  retryJobId?: string;
 }
 
 export async function launchUrls(req: LaunchRequest): Promise<LaunchResult[]> {
@@ -57,7 +58,7 @@ export async function launchUrls(req: LaunchRequest): Promise<LaunchResult[]> {
     }
 
     const cliArgs = validateAndBuildCliArgs(mergedArgs);
-    const executed = await executeGalleryDlCommand(url, cliArgs);
+    const executed = await executeGalleryDlCommand(url, cliArgs, undefined, req.retryJobId);
 
     const result: LaunchResult =
       executed.success && executed.jobId
