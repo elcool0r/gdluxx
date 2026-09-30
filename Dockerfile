@@ -22,26 +22,38 @@ RUN mkdir -p data && chown 1000:1000 data
 
 RUN pnpm build
 
-FROM node:24-slim AS runner
+# Install production dependencies in an intermediate stage. The package
+# manifests are the only app inputs to this stage, so source/build changes do
+# not repeat the apt or dependency installation work.
+FROM node:24-slim AS production-deps
 
 ARG PNPM_VERSION
-RUN corepack enable && corepack prepare pnpm@${PNPM_VERSION} --activate
+RUN corepack enable && corepack prepare pnpm@${PNPM_VERSION} --activate && \
+    apt-get update && \
+    apt-get install -y --no-install-recommends python3 make g++ && \
+    rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+RUN pnpm install --frozen-lockfile --prod && \
+    pnpm store prune && \
+    rm -rf /root/.cache /tmp/*
+
+FROM node:24-slim AS runner
+
+WORKDIR /app
+
+# Keep runtime OS packages ahead of app copies so changing code does not
+# invalidate the apt layer.
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends ffmpeg && \
+    rm -rf /var/cache/apt/* /var/lib/apt/lists/*
 
 COPY --from=builder --chown=1000:1000 /app/build ./build
 COPY --from=builder --chown=1000:1000 /app/static ./static
 COPY --from=builder --chown=1000:1000 /app/package.json ./package.json
-COPY --from=builder --chown=1000:1000 /app/pnpm-lock.yaml ./pnpm-lock.yaml
-COPY --from=builder --chown=1000:1000 /app/pnpm-workspace.yaml ./pnpm-workspace.yaml
 COPY --from=builder --chown=1000:1000 /app/src/lib/server/schema.sql ./schema.sql
-
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends ffmpeg python3 make g++ && \
-    pnpm install --frozen-lockfile --prod && \
-    pnpm store prune && \
-    apt-get purge -y --auto-remove python3 make g++ && \
-    rm -rf /root/.cache /tmp/* /var/cache/apt/* /var/lib/apt/lists/*
+COPY --from=production-deps --chown=1000:1000 /app/node_modules ./node_modules
 
 ENV NODE_ENV=production
 ENV PORT=7755
