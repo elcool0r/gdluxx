@@ -37,7 +37,7 @@ COPY --from=builder --chown=1000:1000 /app/pnpm-workspace.yaml ./pnpm-workspace.
 COPY --from=builder --chown=1000:1000 /app/src/lib/server/schema.sql ./schema.sql
 
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends python3 make g++ && \
+    apt-get install -y --no-install-recommends ffmpeg python3 make g++ && \
     pnpm install --frozen-lockfile --prod && \
     pnpm store prune && \
     apt-get purge -y --auto-remove python3 make g++ && \
