@@ -70,8 +70,18 @@
     const scroller = getLogScroller();
     if (!scroller) return;
     let lastScrollTop = scroller.scrollTop;
+    let lastOutputCount = job.output.length;
     const handleScroll = () => {
       const currentScrollTop = scroller.scrollTop;
+      const outputCount = job.output.length;
+      // Retrying clears the previous run's output, which can clamp scrollTop
+      // and emit a scroll event that looks like the user scrolled upward.
+      if (outputCount < lastOutputCount) {
+        lastOutputCount = outputCount;
+        lastScrollTop = currentScrollTop;
+        return;
+      }
+      lastOutputCount = outputCount;
       if (followNewLogs && currentScrollTop < lastScrollTop - 1) {
         followNewLogs = false;
       }
@@ -98,7 +108,13 @@
     retrying = true;
     const success = await jobStore.retryJob(job.id);
     retrying = false;
-    if (!success) clientLogger.error(`Retry request failed for job ${job.id}`);
+    if (success) {
+      followNewLogs = true;
+      await tick();
+      scrollToLatest();
+    } else {
+      clientLogger.error(`Retry request failed for job ${job.id}`);
+    }
   }
 
   function handleDismiss() {
