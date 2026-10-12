@@ -61,7 +61,7 @@ export const POST: RequestHandler = async ({ params, locals }: RequestEvent): Pr
         await jobManager.completeJob(jobId, 1);
         return handleApiError(new Error(result?.error ?? 'Failed to retry job'));
       }
-      return createApiResponse({ jobId });
+      return createApiResponse({ jobId, status: result.status ?? 'waiting' });
     } catch (error) {
       await jobManager.completeJob(jobId, 1);
       if (error instanceof BinaryUnavailableError) return handleApiError(error);

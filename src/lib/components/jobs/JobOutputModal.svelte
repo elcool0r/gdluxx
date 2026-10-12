@@ -266,7 +266,9 @@
     class="bg-surface-sunken p-3 font-mono text-xs sm:p-4 sm:text-sm"
   >
     {#if job.output.length === 0}
-      <p class="text-muted-foreground">Waiting for output...</p>
+      <p class="text-muted-foreground">
+        {job.status === 'waiting' ? 'Waiting for queue capacity...' : 'Waiting for output...'}
+      </p>
     {:else}
       {#each job.output as output (output)}
         <div class={`break-words whitespace-pre-wrap ${getOutputStyle(output.type)}`}>

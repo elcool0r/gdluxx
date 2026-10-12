@@ -20,6 +20,7 @@ export interface LaunchResult {
   url: string;
   success: boolean;
   jobId?: string;
+  status?: 'waiting' | 'running';
   error?: string;
 }
 
@@ -62,7 +63,7 @@ export async function launchUrls(req: LaunchRequest): Promise<LaunchResult[]> {
 
     const result: LaunchResult =
       executed.success && executed.jobId
-        ? { url, success: true, jobId: executed.jobId }
+        ? { url, success: true, jobId: executed.jobId, status: executed.status }
         : { url, success: false, error: executed.error || 'Failed to start job' };
 
     results.push(result);
